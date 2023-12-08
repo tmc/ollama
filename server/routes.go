@@ -231,7 +231,7 @@ func GenerateHandler(c *gin.Context) {
 			prevCtx = strings.TrimPrefix(prevCtx, " ")
 			rebuild.WriteString(prevCtx)
 		}
-		p, err := model.Prompt(PromptVars{
+		p, err := model.PreResponsePrompt(PromptVars{
 			System: req.System,
 			Prompt: req.Prompt,
 			First:  len(req.Context) == 0,
@@ -277,7 +277,13 @@ func GenerateHandler(c *gin.Context) {
 			}
 
 			if r.Done && !req.Raw {
-				embd, err := loaded.runner.Encode(c.Request.Context(), prompt+generated.String())
+				// append the generated text to the history and template it if needed
+				result, err := model.PostResponseTemplate(generated.String())
+				if err != nil {
+					ch <- gin.H{"error": err.Error()}
+					return
+				}
+				embd, err := loaded.runner.Encode(c.Request.Context(), prompt+result)
 				if err != nil {
 					ch <- gin.H{"error": err.Error()}
 					return
